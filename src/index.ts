@@ -1,6 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { prisma } from './lib/prisma';
+import authRoutes from './routes/auth';
+import { authMiddleware } from './middleware/auth';
 
 dotenv.config();
 
@@ -9,8 +11,17 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// Public routes
 app.get('/health', (req, res) => {
   res.json({ status: "ok" });
+});
+
+// Auth routes
+app.use('/auth', authRoutes);
+
+// Protected routes (for testing)
+app.get('/me', authMiddleware, (req, res) => {
+  res.json({ user: req.user, accessToken: req.accessToken });
 });
 
 async function startServer() {
