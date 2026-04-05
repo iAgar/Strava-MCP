@@ -68,6 +68,11 @@ router.get('/get_activities', async (req: Request, res: Response) => {
     elapsed_time: a.elapsed_time,
     elevation: a.total_elevation_gain,
     start_date: a.start_date,
+    average_speed: a.average_speed,
+    average_heartrate: a.average_heartrate,
+    max_heartrate: a.max_heartrate,
+    suffer_score: a.suffer_score,
+    average_cadence: a.average_cadence,
   }));
 
   // Client-side filtering by type
@@ -107,6 +112,16 @@ router.get('/get_activity_details', async (req: Request, res: Response) => {
     segment_efforts: a.segment_efforts,
     average_heartrate: a.average_heartrate,
     max_heartrate: a.max_heartrate,
+    laps: a.laps,
+    best_efforts: a.best_efforts,
+    calories: a.calories,
+    average_speed: a.average_speed,
+    average_cadence: a.average_cadence,
+    description: a.description,
+    gear: a.gear ? { id: a.gear.id, name: a.gear.name } : null,
+    kudos_count: a.kudos_count,
+    comment_count: a.comment_count,
+    map: a.map ? { summary_polyline: a.map.summary_polyline } : null,
   });
 });
 
@@ -173,8 +188,10 @@ router.get('/get_athlete_stats', async (req: Request, res: Response) => {
   res.json({
     ytd_run_totals: s.ytd_run_totals,
     ytd_ride_totals: s.ytd_ride_totals,
+    ytd_swim_totals: s.ytd_swim_totals,
     all_run_totals: s.all_run_totals,
     all_ride_totals: s.all_ride_totals,
+    all_swim_totals: s.all_swim_totals,
   });
 });
 
