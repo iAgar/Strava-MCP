@@ -112,13 +112,15 @@ mcpServer.tool(
 // 7. get_segments
 mcpServer.tool(
   "get_segments",
-  "Explore segments near a specific location",
+  "Explore segments near a specific location with optional radius and activity type filtering",
   {
     sessionId: z.string().describe("Your active session ID"),
     lat: z.number().describe("Latitude"),
     lng: z.number().describe("Longitude"),
+    radius: z.number().optional().describe("Search radius in km (default 1, max 10)"),
+    activity_type: z.string().optional().describe("Activity type: 'riding' or 'running'"),
   },
-  async ({ sessionId, lat, lng }) => callInternalTool("/get_segments", "GET", sessionId, { lat, lng })
+  async ({ sessionId, ...params }) => callInternalTool("/get_segments", "GET", sessionId, params)
 );
 
 // 8. get_segment_efforts

@@ -182,19 +182,26 @@ router.get('/get_athlete_stats', async (req: Request, res: Response) => {
 const GetSegmentsSchema = z.object({
   lat: z.coerce.number(),
   lng: z.coerce.number(),
+  radius: z.coerce.number().min(0.1).max(10).default(1),
+  activity_type: z.enum(['riding', 'running']).optional(),
 });
 
 router.get('/get_segments', async (req: Request, res: Response) => {
   const validation = GetSegmentsSchema.safeParse(req.query);
   if (!validation.success) {
-    return res.status(400).json({ error: 'Missing or invalid lat/lng', status: 400 });
+    return res.status(400).json({ error: validation.error.format(), status: 400 });
   }
 
-  const { lat, lng } = validation.data;
-  // Create a small bounding box (~1km)
-  const bounds = `${lat - 0.01},${lng - 0.01},${lat + 0.01},${lng + 0.01}`;
+  const { lat, lng, radius, activity_type } = validation.data;
+  
+  // Create a bounding box based on radius (1km ≈ 0.009 degrees lat)
+  const offset = radius * 0.009;
+  const bounds = `${lat - offset},${lng - offset},${lat + offset},${lng + offset}`;
 
-  const result = await stravaRequest('GET', '/segments/explore', req.accessToken!, { bounds });
+  const params: any = { bounds };
+  if (activity_type) params.activity_type = activity_type;
+
+  const result = await stravaRequest('GET', '/segments/explore', req.accessToken!, params);
   if ('error' in result) return res.status(result.status).json(result);
 
   const segments = result.data.segments.map((s: any) => ({
