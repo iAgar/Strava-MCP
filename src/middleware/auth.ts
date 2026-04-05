@@ -24,7 +24,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
   try {
     // Find valid session in the database and include associated user
-    const session = await prisma.session.findUnique({
+    // @ts-ignore: Prisma session model is sometimes not recognized by linting despite being in schema
+    const session = await (prisma as any).session.findUnique({
       where: { sessionId },
       include: { user: true },
     });

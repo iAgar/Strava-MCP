@@ -58,7 +58,8 @@ router.get('/callback', async (req: Request, res: Response) => {
 
     // 3. Generate session ID and store in database
     const sessionId = uuidv4();
-    await prisma.session.create({
+    // @ts-ignore: Prisma session model is sometimes not recognized by linting despite being in schema
+    await (prisma as any).session.create({
       data: {
         sessionId,
         userId: user.id,

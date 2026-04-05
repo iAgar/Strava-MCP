@@ -171,7 +171,14 @@ router.post('/create_activity', async (req: Request, res: Response) => {
     return res.status(400).json({ error: validation.error.format(), status: 400 });
   }
 
-  const result = await stravaRequest('POST', '/activities', req.accessToken!, {}, validation.data);
+  const { moving_time } = validation.data;
+  // Strava expects 'elapsed_time' for creation.
+  const stravaData = {
+    ...validation.data,
+    elapsed_time: moving_time
+  };
+
+  const result = await stravaRequest('POST', '/activities', req.accessToken!, {}, stravaData);
   if ('error' in result) return res.status(result.status).json(result);
 
   res.json({ id: result.data.id, name: result.data.name });
@@ -194,13 +201,20 @@ router.put('/update_activity', async (req: Request, res: Response) => {
     return res.status(400).json({ error: validation.error.format(), status: 400 });
   }
 
-  const result = await stravaRequest('PUT', `/activities/${idQuery}`, req.accessToken!, {}, validation.data);
+  // Strava expects 'sport_type' for updates, though we use 'type' in MCP for simplicity.
+  const stravaData: any = { ...validation.data };
+  if (stravaData.type) {
+    stravaData.sport_type = stravaData.type;
+    delete stravaData.type;
+  }
+
+  const result = await stravaRequest('PUT', `/activities/${idQuery}`, req.accessToken!, {}, stravaData);
   if ('error' in result) return res.status(result.status).json(result);
 
   // Return updated fields as requested
   const updatedFields: any = {};
   if (validation.data.name) updatedFields.name = result.data.name;
-  if (validation.data.type) updatedFields.type = result.data.type;
+  if (validation.data.type) updatedFields.type = result.data.type || result.data.sport_type;
   if (validation.data.description) updatedFields.description = result.data.description;
   if (validation.data.gear_id) updatedFields.gear_id = result.data.gear_id;
 
@@ -275,9 +289,10 @@ router.get('/get_segment_efforts', async (req: Request, res: Response) => {
   }
 
   const { id } = validation.data;
-  // athlete_id parameter on this endpoint will filter for the current user's efforts
+  // athlete_id parameter on this endpoint will filter for the current user's efforts.
+  // Strava expects this as a number/integer.
   const result = await stravaRequest('GET', `/segments/${id}/all_efforts`, req.accessToken!, { 
-    athlete_id: req.user.strava_athlete_id,
+    athlete_id: parseInt(req.user.strava_athlete_id, 10),
     per_page: 50 // moderate limit
   });
   
