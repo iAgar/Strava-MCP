@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { prisma } from '../lib/prisma';
-import { sessions } from '../lib/session';
 
 // Extend Express Request type
 declare global {
@@ -23,20 +22,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return res.status(401).json({ error: 'Missing x-session-id header' });
   }
 
-  const userId = sessions.get(sessionId);
-  if (!userId) {
-    return res.status(401).json({ error: 'Invalid or expired session' });
-  }
-
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    // Find valid session in the database and include associated user
+    const session = await prisma.session.findUnique({
+      where: { sessionId },
+      include: { user: true },
     });
 
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+    if (!session || !session.user) {
+      return res.status(401).json({ error: 'Invalid or expired session' });
     }
 
+    const { user } = session;
     const now = Math.floor(Date.now() / 1000);
     let accessToken = user.access_token;
 

@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma';
-import { sessions } from '../lib/session';
 
 const router = Router();
 
@@ -57,9 +56,14 @@ router.get('/callback', async (req: Request, res: Response) => {
       },
     });
 
-    // 3. Generate session ID and store in-memory
+    // 3. Generate session ID and store in database
     const sessionId = uuidv4();
-    sessions.set(sessionId, user.id);
+    await prisma.session.create({
+      data: {
+        sessionId,
+        userId: user.id,
+      },
+    });
 
     // 4. Return session ID to the client
     res.json({ session_id: sessionId });

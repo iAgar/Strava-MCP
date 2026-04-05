@@ -1,1 +1,3 @@
-export const sessions = new Map<string, string>(); // sessionId -> userId
+// Session management is now handled via Prisma in the database.
+// This file is kept for future session-related utilities if needed.
+export {};
