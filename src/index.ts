@@ -6,39 +6,18 @@ import authRoutes from './routes/auth';
 import { authMiddleware } from './middleware/auth';
 import toolRoutes from './routes/tools';
 import { mcpServer } from './lib/mcp';
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { v4 as uuidv4 } from 'uuid';
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// MCP Protocol Layer (HTTP Transport)
-const transports = new Map<string, SSEServerTransport>();
-
-app.get("/sse", async (req, res) => {
-  const connectionId = uuidv4();
-  const transport = new SSEServerTransport(`/messages/${connectionId}`, res);
-
-  transports.set(connectionId, transport);
-
-  res.on('close', () => {
-    transports.delete(connectionId);
-  });
-
+// MCP Protocol Layer (Streamable HTTP Transport)
+app.post("/mcp", async (req, res) => {
+  const transport = new StreamableHTTPServerTransport();
   await mcpServer.connect(transport);
-});
-
-app.post("/messages/:connectionId", async (req, res) => {
-  const { connectionId } = req.params;
-  const transport = transports.get(connectionId);
-
-  if (!transport) {
-    return res.status(404).json({ error: 'Connection not found' });
-  }
-
-  await transport.handlePostMessage(req, res);
+  await transport.handleRequest(req, res, req.body);
 });
 
 // Public routes
