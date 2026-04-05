@@ -4,7 +4,7 @@ import express from 'express';
 import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import { authMiddleware } from './middleware/auth';
-
+import toolRoutes from './routes/tools';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -23,6 +23,9 @@ app.use('/auth', authRoutes);
 app.get('/me', authMiddleware, (req, res) => {
   res.json({ user: req.user, accessToken: req.accessToken });
 });
+
+// Tools routes (Protected)
+app.use('/tools', authMiddleware, toolRoutes);
 
 async function startServer() {
   try {
