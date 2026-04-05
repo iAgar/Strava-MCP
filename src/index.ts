@@ -7,6 +7,7 @@ import { authMiddleware } from './middleware/auth';
 import toolRoutes from './routes/tools';
 import { mcpServer } from './lib/mcp';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,14 +15,29 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 
 // MCP Protocol Layer (HTTP Transport)
-let transport: SSEServerTransport;
+const transports = new Map<string, SSEServerTransport>();
 
 app.get("/sse", async (req, res) => {
-  transport = new SSEServerTransport("/messages", res);
+  const connectionId = uuidv4();
+  const transport = new SSEServerTransport(`/messages/${connectionId}`, res);
+
+  transports.set(connectionId, transport);
+
+  res.on('close', () => {
+    transports.delete(connectionId);
+  });
+
   await mcpServer.connect(transport);
 });
 
-app.post("/messages", async (req, res) => {
+app.post("/messages/:connectionId", async (req, res) => {
+  const { connectionId } = req.params;
+  const transport = transports.get(connectionId);
+
+  if (!transport) {
+    return res.status(404).json({ error: 'Connection not found' });
+  }
+
   await transport.handlePostMessage(req, res);
 });
 
