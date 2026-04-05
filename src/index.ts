@@ -5,11 +5,25 @@ import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import { authMiddleware } from './middleware/auth';
 import toolRoutes from './routes/tools';
+import { mcpServer } from './lib/mcp';
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// MCP Protocol Layer (HTTP Transport)
+let transport: SSEServerTransport;
+
+app.get("/sse", async (req, res) => {
+  transport = new SSEServerTransport("/messages", res);
+  await mcpServer.connect(transport);
+});
+
+app.post("/messages", async (req, res) => {
+  await transport.handlePostMessage(req, res);
+});
 
 // Public routes
 app.get('/health', (req, res) => {
