@@ -19,11 +19,6 @@ app.get('/health', (req, res) => {
 // Auth routes
 app.use('/auth', authRoutes);
 
-// Protected routes (for testing)
-app.get('/me', authMiddleware, (req, res) => {
-  res.json({ user: req.user, accessToken: req.accessToken });
-});
-
 // Tools routes (Protected)
 app.use('/tools', authMiddleware, toolRoutes);
 

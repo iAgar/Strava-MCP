@@ -162,4 +162,82 @@ router.put('/update_activity', async (req: Request, res: Response) => {
   res.json(updatedFields);
 });
 
+// 6. GET /tools/get_athlete_stats
+router.get('/get_athlete_stats', async (req: Request, res: Response) => {
+  const athleteId = req.user.strava_athlete_id;
+  const result = await stravaRequest('GET', `/athletes/${athleteId}/stats`, req.accessToken!);
+  
+  if ('error' in result) return res.status(result.status).json(result);
+
+  const s = result.data;
+  res.json({
+    ytd_run_totals: s.ytd_run_totals,
+    ytd_ride_totals: s.ytd_ride_totals,
+    all_run_totals: s.all_run_totals,
+    all_ride_totals: s.all_ride_totals,
+  });
+});
+
+// 7. GET /tools/get_segments
+const GetSegmentsSchema = z.object({
+  lat: z.coerce.number(),
+  lng: z.coerce.number(),
+});
+
+router.get('/get_segments', async (req: Request, res: Response) => {
+  const validation = GetSegmentsSchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: 'Missing or invalid lat/lng', status: 400 });
+  }
+
+  const { lat, lng } = validation.data;
+  // Create a small bounding box (~1km)
+  const bounds = `${lat - 0.01},${lng - 0.01},${lat + 0.01},${lng + 0.01}`;
+
+  const result = await stravaRequest('GET', '/segments/explore', req.accessToken!, { bounds });
+  if ('error' in result) return res.status(result.status).json(result);
+
+  const segments = result.data.segments.map((s: any) => ({
+    id: s.id,
+    name: s.name,
+    distance: s.distance,
+    avg_grade: s.avg_grade,
+    climb_category: s.climb_category,
+    city: s.city,
+  }));
+
+  res.json(segments);
+});
+
+// 8. GET /tools/get_segment_efforts
+const GetSegmentEffortsSchema = z.object({
+  id: z.string(),
+});
+
+router.get('/get_segment_efforts', async (req: Request, res: Response) => {
+  const validation = GetSegmentEffortsSchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: 'Missing segment id', status: 400 });
+  }
+
+  const { id } = validation.data;
+  // athlete_id parameter on this endpoint will filter for the current user's efforts
+  const result = await stravaRequest('GET', `/segments/${id}/all_efforts`, req.accessToken!, { 
+    athlete_id: req.user.strava_athlete_id,
+    per_page: 50 // moderate limit
+  });
+  
+  if ('error' in result) return res.status(result.status).json(result);
+
+  const efforts = result.data.map((e: any) => ({
+    id: e.id,
+    elapsed_time: e.elapsed_time,
+    moving_time: e.moving_time,
+    start_date: e.start_date,
+    average_speed: e.average_speed,
+  }));
+
+  res.json(efforts);
+});
+
 export default router;

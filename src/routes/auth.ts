@@ -16,7 +16,7 @@ if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET || !STRAVA_REDIRECT_URI) {
 
 // Redirect to Strava OAuth
 router.get('/login', (req: Request, res: Response) => {
-  const scope = 'read,activity:read_all';
+  const scope = 'read,activity:read_all,activity:write';
   const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${STRAVA_REDIRECT_URI}&response_type=code&scope=${scope}`;
   res.redirect(authUrl);
 });
