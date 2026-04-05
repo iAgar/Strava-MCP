@@ -2,11 +2,23 @@ import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { z } from 'zod';
 
+import { checkRateLimit, recordRequest, updateRateLimitFromHeaders } from '../lib/rateLimiter';
+
 const router = Router();
 const STRAVA_BASE_URL = 'https://www.strava.com/api/v3';
 
 // Helper for Strava API calls
 const stravaRequest = async (method: string, path: string, token: string, params?: any, data?: any) => {
+  // Pre-emptive local check
+  const limitCheck = checkRateLimit();
+  if (!limitCheck.allowed) {
+    const minutes = Math.ceil(limitCheck.retryAfterSeconds! / 60);
+    return { 
+      error: `Strava API rate limit reached. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`, 
+      status: 429 
+    };
+  }
+
   try {
     const response = await axios({
       method,
@@ -15,9 +27,27 @@ const stravaRequest = async (method: string, path: string, token: string, params
       params,
       data,
     });
+    
+    // Increment local counters and sync with headers
+    recordRequest();
+    updateRateLimitFromHeaders(response.headers);
+    
     return { data: response.data, status: response.status };
   } catch (error: any) {
     const status = error.response?.status || 500;
+    
+    // Sync headers even on failure if they are available
+    if (error.response?.headers) {
+      updateRateLimitFromHeaders(error.response.headers);
+    }
+
+    if (status === 429) {
+      return { 
+        error: "Strava API rate limit reached (remote). Please wait before trying again.", 
+        status: 429 
+      };
+    }
+
     const message = error.response?.data?.message || error.message;
     return { error: message, status };
   }
