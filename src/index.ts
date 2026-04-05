@@ -5,7 +5,7 @@ import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import { authMiddleware } from './middleware/auth';
 import toolRoutes from './routes/tools';
-import { mcpServer } from './lib/mcp';
+import { createMcpServer } from './lib/mcp';
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 const app = express();
@@ -14,10 +14,21 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 
 // MCP Protocol Layer (Streamable HTTP Transport)
-app.post("/mcp", async (req, res) => {
-  const transport = new StreamableHTTPServerTransport();
-  await mcpServer.connect(transport);
-  await transport.handleRequest(req, res, req.body);
+app.all("/mcp", async (req, res) => {
+  try {
+    const server = createMcpServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    });
+    res.on('close', () => { transport.close(); server.close(); });
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (error) {
+    console.error('Error handling MCP request:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal server error' }, id: null });
+    }
+  }
 });
 
 // Public routes
