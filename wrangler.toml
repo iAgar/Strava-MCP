@@ -1,0 +1,23 @@
+name = "strava-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-03-10"
+
+[compatibility_flags]
+"nodejs_compat" = true
+
+[kv_namespaces]
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "<YOUR_KV_NAMESPACE_ID>"
+
+[[durable_objects.bindings]]
+name = "MCP_OBJECT"
+class_name = "StravaMCP"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StravaMCP"]
+
+[vars]
+# STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET should be set via wrangler secrets
+AUTH_CALLBACK_DOMAIN = "http://localhost:8788" # Update for production

@@ -68,9 +68,9 @@ export function recordRequest() {
  * X-RateLimit-Limit: 100,1000
  * X-RateLimit-Usage: 5,10
  */
-export function updateRateLimitFromHeaders(headers: any) {
-  const usage = headers['x-ratelimit-usage'];
-  const limit = headers['x-ratelimit-limit'];
+export function updateRateLimitFromHeaders(headers: Headers) {
+  const usage = headers.get('x-ratelimit-usage');
+  const limit = headers.get('x-ratelimit-limit');
 
   if (usage && limit) {
     const [shortUsage, longUsage] = usage.split(',').map(Number);
