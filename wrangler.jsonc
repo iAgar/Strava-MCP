@@ -30,5 +30,8 @@
 	],
 	"dev": {
 		"port": 8788
+	},
+	"vars": {
+		"AUTH_CALLBACK_DOMAIN": "https://strava-mcp.ishaanagarwal1805.workers.dev"
 	}
 }
