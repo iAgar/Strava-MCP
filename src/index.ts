@@ -274,7 +274,7 @@ const provider = new OAuthProvider({
 	clientRegistrationEndpoint: "/register",
 	tokenExchangeCallback: async (options) => {
 		if (options.grantType === "refresh_token") {
-			const updatedTokens = await refreshStravaToken(options.props.refreshToken, (options as any).env);
+			const updatedTokens = await refreshStravaToken(options.props.refreshToken);
 			return { ...options.props, ...updatedTokens };
 		}
 		return options.props;

@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, StravaAuthResponse } from "./utils";
@@ -7,12 +8,11 @@ import { StravaClient } from "./strava-api";
 type Env = {
 	STRAVA_CLIENT_ID: string;
 	STRAVA_CLIENT_SECRET: string;
-	AUTH_CALLBACK_DOMAIN: string;
 	OAUTH_KV: KVNamespace;
 	OAUTH_PROVIDER: OAuthHelpers;
 };
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
 
 // Context from the auth process, encrypted & stored in the auth token
 // and provided to the StravaMCP as this.props
@@ -33,14 +33,14 @@ app.get("/authorize", async (c) => {
 		return c.text("Invalid request", 400);
 	}
 
-	const callbackUrl = new URL("/callback", c.env.AUTH_CALLBACK_DOMAIN || c.req.url);
-	
+	const callbackUrl = new URL("/callback", c.req.url).href;
+
 	return Response.redirect(
 		getUpstreamAuthorizeUrl({
 			upstream_url: "https://www.strava.com/api/v3/oauth/authorize",
 			scope: "read,read_all,profile:read_all,profile:write,activity:read,activity:read_all,activity:write",
 			client_id: c.env.STRAVA_CLIENT_ID,
-			redirect_uri: callbackUrl.href,
+			redirect_uri: callbackUrl,
 			state: btoa(JSON.stringify(oauthReqInfo)),
 		}),
 	);
@@ -58,22 +58,22 @@ app.get("/callback", async (c) => {
 		return c.text("Invalid state", 400);
 	}
 
-	const callbackUrl = new URL("/callback", c.env.AUTH_CALLBACK_DOMAIN || c.req.url);
+	const callbackUrl = new URL("/callback", c.req.url).href;
 
 	// Exchange the code for an access token
 	const [authResponse, errResponse] = await fetchUpstreamAuthToken({
 		upstream_url: "https://www.strava.com/api/v3/oauth/token",
 		client_id: c.env.STRAVA_CLIENT_ID,
 		client_secret: c.env.STRAVA_CLIENT_SECRET,
-		code: c.req.query("code") || null,
-		redirect_uri: callbackUrl.href,
+		code: c.req.query("code"),
+		redirect_uri: callbackUrl,
 	});
 	if (errResponse) return errResponse;
 
 	// Fetch user info to populate props
-	const stravaClient = new StravaClient(authResponse!.access_token);
-	const { data: athlete, error: athleteError } = await stravaClient.getLoggedInAthlete();
-	if (athleteError || !athlete) {
+	const result = await new StravaClient(authResponse!.access_token).getLoggedInAthlete();
+	const athlete = result.data;
+	if (!athlete) {
 		return new Response("Failed to fetch athlete profile from Strava", { status: 502 });
 	}
 
@@ -102,15 +102,16 @@ export const StravaHandler = app;
 /**
  * Helper to refresh tokens using Strava's API
  */
-export const refreshStravaToken = async (refresh_token: string, env: Env): Promise<Partial<Props>> => {
+export const refreshStravaToken = async (refresh_token: string): Promise<Partial<Props>> => {
+	const { STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET } = env<Env>();
 	const response = await fetch("https://www.strava.com/api/v3/oauth/token", {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
 		body: new URLSearchParams({
-			client_id: env.STRAVA_CLIENT_ID,
-			client_secret: env.STRAVA_CLIENT_SECRET,
+			client_id: STRAVA_CLIENT_ID,
+			client_secret: STRAVA_CLIENT_SECRET,
 			grant_type: 'refresh_token',
 			refresh_token,
 		}).toString(),
