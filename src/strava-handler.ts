@@ -72,7 +72,10 @@ app.get("/callback", async (c) => {
 
 	// Fetch user info to populate props
 	const stravaClient = new StravaClient(authResponse!.access_token);
-	const athlete = await stravaClient.getLoggedInAthlete();
+	const { data: athlete, error: athleteError } = await stravaClient.getLoggedInAthlete();
+	if (athleteError || !athlete) {
+		return new Response("Failed to fetch athlete profile from Strava", { status: 502 });
+	}
 
 	// Complete authorization and redirect back to client
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
