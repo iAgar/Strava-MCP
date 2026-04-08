@@ -30,10 +30,10 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 			"Retrieve the authenticated athlete's profile",
 			{},
 			async () => {
-				const result = await client.stravaRequest<any>('GET', '/athlete');
+				const result = await client.getLoggedInAthlete();
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 				
-				const { id, username, firstname, lastname, city, country, sex, ftp, weight, bikes, shoes } = result.data;
+				const { id, username, firstname, lastname, city, country, sex, ftp, weight, bikes, shoes } = result.data!;
 				return { content: [{ type: "text", text: JSON.stringify({ id, username, firstname, lastname, city, country, sex, ftp, weight, bikes, shoes }) }] };
 			}
 		);
@@ -50,13 +50,17 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 				type: z.string().optional().describe("Activity type (e.g., Run, Ride)"),
 			},
 			async ({ after, before, page, per_page, type }) => {
-				const params: any = {};
-				if (after) params.after = Math.floor(new Date(after).getTime() / 1000);
-				if (before) params.before = Math.floor(new Date(before).getTime() / 1000);
-				if (page) params.page = page;
-				if (per_page) params.per_page = per_page;
+				const fetchParams: any = {};
+				if (after) fetchParams.after = Math.floor(new Date(after).getTime() / 1000);
+				if (before) fetchParams.before = Math.floor(new Date(before).getTime() / 1000);
+				if (page) fetchParams.page = page;
+				if (type) {
+					fetchParams.per_page = 30;
+				} else if (per_page) {
+					fetchParams.per_page = per_page;
+				}
 
-				const result = await client.stravaRequest<any[]>('GET', '/athlete/activities', params);
+				const result = await client.listAthleteActivities(fetchParams);
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 
 				let activities = result.data!.map((a: any) => ({
@@ -77,6 +81,9 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 
 				if (type) {
 					activities = activities.filter((a: any) => a.type.toLowerCase() === type.toLowerCase());
+					if (per_page) {
+						activities = activities.slice(0, Number(per_page));
+					}
 				}
 
 				return { content: [{ type: "text", text: JSON.stringify(activities) }] };
@@ -91,7 +98,7 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 				id: z.string().describe("The ID of the activity to retrieve details for"),
 			},
 			async ({ id }) => {
-				const result = await client.stravaRequest<any>('GET', `/activities/${id}`);
+				const result = await client.getActivity(id);
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 
 				const a = result.data;
@@ -141,9 +148,9 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 			},
 			async ({ moving_time, ...rest }) => {
 				const stravaData = { ...rest, moving_time, elapsed_time: moving_time };
-				const result = await client.stravaRequest<any>('POST', '/activities', {}, stravaData);
+				const result = await client.createActivity(stravaData);
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
-				return { content: [{ type: "text", text: JSON.stringify({ id: result.data.id, name: result.data.name }) }] };
+				return { content: [{ type: "text", text: JSON.stringify({ id: result.data!.id, name: result.data!.name }) }] };
 			}
 		);
 
@@ -162,14 +169,14 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 				const stravaData: any = { ...rest };
 				if (type) stravaData.sport_type = type;
 				
-				const result = await client.stravaRequest<any>('PUT', `/activities/${id}`, {}, stravaData);
+				const result = await client.updateActivity(id, stravaData);
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 
 				const updatedFields: any = {};
-				if (rest.name) updatedFields.name = result.data.name;
-				if (type) updatedFields.type = result.data.type || result.data.sport_type;
-				if (rest.description) updatedFields.description = result.data.description;
-				if (rest.gear_id) updatedFields.gear_id = result.data.gear_id;
+				if (rest.name) updatedFields.name = result.data?.name;
+				if (type) updatedFields.type = result.data?.type || result.data?.sport_type;
+				if (rest.description) updatedFields.description = result.data?.description;
+				if (rest.gear_id) updatedFields.gear_id = result.data?.gear_id;
 
 				return { content: [{ type: "text", text: JSON.stringify(updatedFields) }] };
 			}
@@ -181,7 +188,7 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 			"Retrieve statistics for the authenticated athlete",
 			{},
 			async () => {
-				const result = await client.stravaRequest<any>('GET', `/athletes/${this.props.userId}/stats`);
+				const result = await client.getAthleteStats(this.props.userId);
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 
 				const s = result.data;
@@ -217,7 +224,7 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 				const params: any = { bounds };
 				if (activity_type) params.activity_type = activity_type;
 
-				const result = await client.stravaRequest<any>('GET', '/segments/explore', params);
+				const result = await client.exploreSegments(params);
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 
 				const segments = result.data.segments.map((s: any) => ({
@@ -241,10 +248,7 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 				id: z.string().describe("The ID of the segment"),
 			},
 			async ({ id }) => {
-				const result = await client.stravaRequest<any[]>('GET', `/segments/${id}/all_efforts`, { 
-					athlete_id: parseInt(this.props.userId, 10),
-					per_page: 50 
-				});
+				const result = await client.getSegmentEfforts(id, parseInt(this.props.userId, 10));
 				if (result.error) return { content: [{ type: "text", text: result.error }], isError: true };
 
 				const efforts = result.data!.map((e: any) => ({
@@ -262,8 +266,8 @@ export class StravaMCP extends McpAgent<unknown, unknown, Props> {
 }
 
 const provider = new OAuthProvider({
-	apiRoute: "/mcp", 
-	apiHandler: StravaMCP.mount("/mcp"),
+	apiRoute: "/sse", 
+	apiHandler: StravaMCP.mount("/sse"),
 	defaultHandler: StravaHandler,
 	authorizeEndpoint: "/authorize",
 	tokenEndpoint: "/token",
@@ -277,16 +281,4 @@ const provider = new OAuthProvider({
 	}
 });
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		const url = new URL(request.url);
-		
-		// Legacy SSE support
-		if (url.pathname === "/sse") {
-			return StravaMCP.mount("/sse")(request, env, ctx);
-		}
-
-		// Main MCP (Streamable HTTP) and Auth flow
-		return provider.fetch(request, env, ctx);
-	}
-};
+export default provider;

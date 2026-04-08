@@ -5,7 +5,6 @@ compatibility_date = "2025-03-10"
 [compatibility_flags]
 "nodejs_compat" = true
 
-[kv_namespaces]
 [[kv_namespaces]]
 binding = "OAUTH_KV"
 id = "<YOUR_KV_NAMESPACE_ID>"

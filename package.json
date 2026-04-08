@@ -15,8 +15,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "agents": "^0.0.45",
     "hono": "^4.7.4",
-    "zod": "^3.24.2",
-    "axios": "^1.14.0"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250405.0",
