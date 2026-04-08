@@ -19,4 +19,4 @@ new_sqlite_classes = ["StravaMCP"]
 
 [vars]
 # STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET should be set via wrangler secrets
-AUTH_CALLBACK_DOMAIN = "http://localhost:8788" # Update for production
+AUTH_CALLBACK_DOMAIN = " https://strava-mcp.ishaanagarwal1805.workers.dev" # Update for production
